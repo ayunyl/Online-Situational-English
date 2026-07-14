@@ -8,12 +8,10 @@
 import { env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/+esm";
 import { KokoroTTS } from "https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm";
 
-// 走 Cloudflare Workers 代理 → hf-mirror.com 国内镜像（有 CORS 头 + 国内速度）
-const HF_PROXY = "https://ayunyl.yjnrich.workers.dev";
-env.remoteHost = HF_PROXY;
-env.remotePathTemplate = "{model}/resolve/{revision}/";
-window.process = window.process || { env: {} };
-window.process.env.HF_ENDPOINT = HF_PROXY;
+// Cloudflare Workers 免费版有 10MB 响应体限制，无法代理 82MB 的模型
+// 走 huggingface.co 官方源（有 CORS），首次慢但能跑，下载完缓存后秒开
+// 如果以后用付费版或别的方案，可改回 HF_PROXY = "https://ayunyl.yjnrich.workers.dev"
+const HF_PROXY = null;
 
 // ONNX Runtime WASM 路径
 env.backends = env.backends || {};

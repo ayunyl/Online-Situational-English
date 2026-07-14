@@ -971,9 +971,9 @@
   <script src="llm-browser.js"></script>
   <script src="app.js"></script>
   <script>
-    // PWA Service Worker 注册
+    // PWA Service Worker 注册（用相对路径，兼容 GitHub Pages 子路径）
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(function(e) {
+      navigator.serviceWorker.register('sw.js').catch(function(e) {
         console.log('SW registration failed:', e);
       });
     }
