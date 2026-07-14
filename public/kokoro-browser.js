@@ -8,9 +8,8 @@
 import { env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/+esm";
 import { KokoroTTS } from "https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm";
 
-// 使用 HuggingFace 国内镜像
-env.remoteHost = "https://hf-mirror.com";
-env.remotePathTemplate = "{model}/resolve/{revision}/";
+// 不设国内镜像：hf-mirror.com 没有 CORS 头会被浏览器拦截
+// 走 huggingface.co 官方源（有 CORS 头），首次慢但能跑，下载完缓存后秒开
 
 // ONNX Runtime WASM 路径
 env.backends = env.backends || {};
@@ -26,11 +25,10 @@ let _device = null;
 let _dtype = null;
 let _isMobile = null;
 
-// 检测是否为手机
+// 检测是否为手机（只用 user agent，不用窗口宽度——开了 DevTools 会变窄误判）
 function detectMobile() {
   if (_isMobile !== null) return _isMobile;
-  _isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
-    (window.innerWidth < 768);
+  _isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   return _isMobile;
 }
 

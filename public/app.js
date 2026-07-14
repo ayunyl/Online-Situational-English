@@ -1469,11 +1469,11 @@ const TTS = {
           this._audio = new Audio(src);
           this._audio.onplay  = onstart  || null;
           this._audio.onended = () => {
-            if (this._currentBtn === btn) { this._setBtn(btn, null); this._currentBtn = null; }
+            if (this._currentBtn) { this._setBtn(this._currentBtn, null); this._currentBtn = null; }
             if (onend) onend();
           };
           this._audio.onerror = () => {
-            if (this._currentBtn === btn) { this._setBtn(btn, null); this._currentBtn = null; }
+            if (this._currentBtn) { this._setBtn(this._currentBtn, null); this._currentBtn = null; }
             if (onend) onend();
           };
           this._audio.play().catch(() => {
