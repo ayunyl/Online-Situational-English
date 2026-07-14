@@ -358,15 +358,12 @@ $('#btnTestTts').addEventListener('click', async () => {
   if (provider === 'kokoro') {
     setStatus(el, false, '引擎加载中…');
     try {
-      // 确保模型已加载
+      // 确保模型已加载（手机用户手动选 Kokoro 时也强制加载）
       if (!window.KokoroBrowser.isReady()) {
-        await window.KokoroBrowser.loadModel();
-      }
-      if (!window.KokoroBrowser.isSupported()) {
-        throw new Error('当前设备不支持 Kokoro（手机请用浏览器语音）');
+        await window.KokoroBrowser.loadModel(null, true);
       }
       if (!window.KokoroBrowser.isReady()) {
-        throw new Error('模型加载失败，请刷新重试');
+        throw new Error('模型加载失败（可能是手机内存不足）');
       }
       const result = await window.KokoroBrowser.synthesize('Hi there.', voice || 'af_nicole', speed || 1.0);
       if (!result || !result.b64) throw new Error('没有返回音频');
@@ -1451,10 +1448,10 @@ const TTS = {
     // ── Kokoro：浏览器端本地合成 ──
     if (provider === 'kokoro') {
       if (onload) onload();
-      // 确保模型已加载
+      // 确保模型已加载（手机手动选 Kokoro 时强制加载）
       const ensureModel = window.KokoroBrowser.isReady()
         ? Promise.resolve()
-        : window.KokoroBrowser.loadModel();
+        : window.KokoroBrowser.loadModel(null, true);
       ensureModel
         .then(() => {
           if (!window.KokoroBrowser.isReady()) {
@@ -1949,10 +1946,10 @@ function autoResizeTextarea(el) {
       setTimeout(tryInit, 500);
       return;
     }
-    if (!window.KokoroBrowser.isSupported()) {
-      console.log('[Kokoro] 手机设备，跳过模型加载');
+    if (window.KokoroBrowser.isMobile()) {
+      console.log('[Kokoro] 手机设备，跳过自动加载（用户可手动切换到 Kokoro）');
       const ttsText = document.getElementById('ttsStatusText');
-      if (ttsText) ttsText.textContent = '浏览器语音（手机模式）';
+      if (ttsText) ttsText.textContent = '浏览器语音（设置里可切 Kokoro）';
       return;
     }
     // 后台加载，不阻塞页面

@@ -31,7 +31,6 @@ function detectMobile() {
   _isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   return _isMobile;
 }
-
 // 检测 WebGPU 支持
 async function detectDevice() {
   if (_device) return { device: _device, dtype: _dtype };
@@ -59,13 +58,13 @@ async function detectDevice() {
  * @param {Function} progressCb - 进度回调 (percent, file)
  * @returns {Promise<KokoroTTS>}
  */
-async function loadModel(progressCb) {
+async function loadModel(progressCb, forceLoad) {
   if (_tts) return _tts;
   if (_loading) return _loading;
 
-  // 手机降级：不加载 Kokoro，直接返回 null
-  if (detectMobile()) {
-    console.log('[Kokoro-Browser] 检测到手机，跳过 Kokoro 加载（降级到浏览器 TTS）');
+  // 手机不自动加载（省流量），但允许手动加载
+  if (detectMobile() && !forceLoad) {
+    console.log('[Kokoro-Browser] 手机设备，跳过自动加载（可手动切换到 Kokoro 试用）');
     return null;
   }
 
@@ -181,13 +180,13 @@ function bufferToBase64(buffer) {
 
 // 导出到全局
 window.KokoroBrowser = {
-  loadModel,
+  loadModel,       // loadModel(progressCb, forceLoad) — forceLoad=true 时手机也会加载
   getModel,
   isReady,
-  isSupported,
+  isSupported,     // 是否非手机（自动加载用）
+  isMobile: detectMobile,  // 是否手机
   synthesize,
   detectDevice,
-  detectMobile,
 };
 
 console.log('[Kokoro-Browser] 模块已加载，等待初始化...');
