@@ -28,5 +28,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/online-situational-english:latest
+            ghcr.io/${{ github.repository_owner }}/online-situational-english:${{ github.sha }}
