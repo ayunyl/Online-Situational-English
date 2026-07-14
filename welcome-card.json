@@ -1,0 +1,88 @@
+{
+  "_note": "写死的欢迎/示例卡片数据，格式与 /api/translate 返回一致。页面初次打开时展示（无需调API）。内容是对本工具的自我介绍——通用情景英语学习，不局限于咖啡。已含5种风格、无双语对照。",
+  "full_en": "Hey there, welcome! Just type a sentence from your daily life, and you'll get natural spoken English with phonetics for every word.",
+  "styles": {
+    "casual": "Hey there, welcome! Just type a sentence from your daily life, and you'll get natural spoken English with phonetics for every word.",
+    "formal": "Welcome. Simply enter a sentence from your daily life, and you will receive natural spoken English with phonetic transcriptions for every word.",
+    "vlog": "Hey, welcome in! Alright, just type a sentence from your everyday life, and you know, you'll get natural spoken English with the phonetics for every single word.",
+    "swagger": "Yo, welcome! Just drop a line from your daily life, and boom — you're getting real spoken English with the phonetics for every word, you know what I'm saying?",
+    "chill": "Hey, welcome, dude. Just type out something from your day, and you'll get this nice easy spoken English with the sounds for every word. Cool, right?"
+  },
+  "chunks": [
+    {
+      "en": "Hey there, welcome!",
+      "cn": "嘿，欢迎！",
+      "tokens": [
+        { "w": "Hey", "ipa": "/heɪ/" },
+        { "w": "there,", "ipa": "/ðeə/" },
+        { "w": "welcome!", "ipa": "/ˈwelkəm/" }
+      ],
+      "collocations": []
+    },
+    {
+      "en": "Just type a sentence from your daily life,",
+      "cn": "输入一句你日常生活里的话，",
+      "tokens": [
+        { "w": "Just", "ipa": "/dʒəst/" },
+        { "w": "type", "ipa": "/taɪp/" },
+        { "w": "a", "ipa": "/ə/" },
+        { "w": "sentence", "ipa": "/ˈsentəns/" },
+        { "w": "from", "ipa": "/frəm/" },
+        { "w": "your", "ipa": "/jə/" },
+        { "w": "daily", "ipa": "/ˈdeɪli/" },
+        { "w": "life,", "ipa": "/laɪf/" }
+      ],
+      "collocations": ["daily life"]
+    },
+    {
+      "en": "and you'll get natural spoken English with phonetics for every word.",
+      "cn": "就能得到地道的英文口播，还有每个词的音标。",
+      "tokens": [
+        { "w": "and", "ipa": "/ənd/" },
+        { "w": "you'll", "ipa": "/jʊl/" },
+        { "w": "get", "ipa": "/ɡet/" },
+        { "w": "natural", "ipa": "/ˈnætʃrəl/" },
+        { "w": "spoken", "ipa": "/ˈspəʊkən/" },
+        { "w": "English", "ipa": "/ˈɪŋɡlɪʃ/" },
+        { "w": "with", "ipa": "/wɪð/" },
+        { "w": "phonetics", "ipa": "/fəˈnetɪks/" },
+        { "w": "for", "ipa": "/fə/" },
+        { "w": "every", "ipa": "/ˈevri/" },
+        { "w": "word.", "ipa": "/wɜːd/" }
+      ],
+      "collocations": ["spoken English"]
+    }
+  ],
+  "word_defs": {
+    "hey": "嘿（打招呼）",
+    "there": "（招呼语 hey there，无实义）",
+    "welcome": "欢迎",
+    "just": "只要、就",
+    "type": "打字、输入",
+    "a": "一（个）",
+    "sentence": "句子",
+    "from": "来自、从",
+    "your": "你的",
+    "daily": "日常的、每天的",
+    "life": "生活",
+    "and": "然后、和",
+    "youll": "你将会（you will）",
+    "get": "得到",
+    "natural": "自然的、地道的",
+    "spoken": "口语的、说的",
+    "english": "英语",
+    "with": "带有、连同",
+    "phonetics": "音标、语音",
+    "for": "对于、给",
+    "every": "每一个",
+    "word": "单词"
+  },
+  "phrase_defs": {
+    "daily life": "日常生活",
+    "spoken English": "英语口语、口播英语"
+  },
+  "collocation_notes": [
+    { "phrase": "daily life", "note": "固定搭配，指“日常生活”。" },
+    { "phrase": "spoken English", "note": "固定搭配，指“英语口语”，区别于书面英语。" }
+  ]
+}

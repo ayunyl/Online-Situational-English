@@ -1,0 +1,17 @@
+{
+  "name": "online-situational-english",
+  "version": "1.0.0",
+  "description": "线上情景英语 - 纯网页版（卡片 + 服务器端 Kokoro TTS，打开网址即用）",
+  "main": "server/index.js",
+  "author": "ayunyl",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "kokoro-js": "^1.2.1"
+  }
+}

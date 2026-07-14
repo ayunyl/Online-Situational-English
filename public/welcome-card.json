@@ -1,0 +1,189 @@
+{
+  "full_en": "Hey there, welcome to Situation English — the tool that helps you turn everyday Chinese into natural, conversational English you can actually use in real life.",
+  "chunks": [
+    {
+      "en": "Hey there, welcome to Situation English —",
+      "cn": "嘿，欢迎来到情景英语 ——",
+      "tokens": [
+        {
+          "w": "Hey",
+          "ipa": "/heɪ/"
+        },
+        {
+          "w": "there,",
+          "ipa": "/ðeə/"
+        },
+        {
+          "w": "welcome",
+          "ipa": "/ˈwelkəm/"
+        },
+        {
+          "w": "to",
+          "ipa": "/tə/"
+        },
+        {
+          "w": "Situation",
+          "ipa": "/ˌsɪtʃuˈeɪʃən/"
+        },
+        {
+          "w": "English",
+          "ipa": "/ˈɪŋɡlɪʃ/"
+        },
+        {
+          "w": "—",
+          "ipa": ""
+        }
+      ],
+      "collocations": [
+        "welcome to"
+      ]
+    },
+    {
+      "en": "the tool that helps you turn everyday Chinese into natural, conversational English",
+      "cn": "一个帮你把日常中文翻成自然口语英文的工具",
+      "tokens": [
+        {
+          "w": "the",
+          "ipa": "/ðə/"
+        },
+        {
+          "w": "tool",
+          "ipa": "/tuːl/"
+        },
+        {
+          "w": "that",
+          "ipa": "/ðæt/"
+        },
+        {
+          "w": "helps",
+          "ipa": "/helps/"
+        },
+        {
+          "w": "you",
+          "ipa": "/jə/"
+        },
+        {
+          "w": "turn",
+          "ipa": "/tɜːn/"
+        },
+        {
+          "w": "everyday",
+          "ipa": "/ˈɛvriˈdeɪ/"
+        },
+        {
+          "w": "Chinese",
+          "ipa": "/ˌtʃaɪˈniːz/"
+        },
+        {
+          "w": "into",
+          "ipa": "/ˈɪntə/"
+        },
+        {
+          "w": "natural,",
+          "ipa": "/ˈnætʃərəl/"
+        },
+        {
+          "w": "conversational",
+          "ipa": "/ˌkɒnvəˈseɪʃənl/"
+        },
+        {
+          "w": "English",
+          "ipa": "/ˈɪŋɡlɪʃ/"
+        }
+      ],
+      "collocations": [
+        "turn … into",
+        "everyday Chinese"
+      ]
+    },
+    {
+      "en": "you can actually use in real life.",
+      "cn": "你在真实生活里真正能用上的那种。",
+      "tokens": [
+        {
+          "w": "you",
+          "ipa": "/jə/"
+        },
+        {
+          "w": "can",
+          "ipa": "/kən/"
+        },
+        {
+          "w": "actually",
+          "ipa": "/ˈæktʃuəli/"
+        },
+        {
+          "w": "use",
+          "ipa": "/juːz/"
+        },
+        {
+          "w": "in",
+          "ipa": "/ɪn/"
+        },
+        {
+          "w": "real",
+          "ipa": "/rɪəl/"
+        },
+        {
+          "w": "life.",
+          "ipa": "/laɪf/"
+        }
+      ],
+      "collocations": [
+        "real life"
+      ]
+    }
+  ],
+  "word_defs": {
+    "hey": "嘿（打招呼）",
+    "there": "那里；用于口语招呼",
+    "welcome": "欢迎",
+    "to": "到、去（介词）",
+    "situation": "情景、情境",
+    "english": "英文；英国的",
+    "the": "这、那（定冠词）",
+    "tool": "工具",
+    "that": "那个（关系代词）",
+    "helps": "帮助（第三人称单数）",
+    "you": "你",
+    "turn": "转变、变成",
+    "everyday": "日常的、普通的",
+    "chinese": "中文；中国的",
+    "into": "进入……（表转变）",
+    "natural": "自然的、不做作的",
+    "conversational": "口语的、对话式的",
+    "can": "能够、可以",
+    "actually": "实际上、真的",
+    "use": "使用",
+    "in": "在……里",
+    "real": "真实的",
+    "life": "生活"
+  },
+  "phrase_defs": {
+    "welcome to": "欢迎来到……（固定搭配）",
+    "turn … into": "把……转变成……（固定搭配）",
+    "everyday Chinese": "日常中文（口语场景高频词组）",
+    "real life": "真实生活（地道表达）"
+  },
+  "styles": {
+    "casual": "Hey there, welcome to Situation English — the tool that helps you turn everyday Chinese into natural, conversational English you can actually use in real life.",
+    "formal": "Welcome to Situation English. This tool assists you in transforming routine Chinese expressions into natural, conversational English suitable for everyday communication.",
+    "vlog": "What is up everybody, welcome back — so this right here is Situation English, and honestly it is a game changer for turning your everyday Chinese into real-life English that just flows.",
+    "swagger": "Yo, check it — this is Situation English, and if you tryna level up your Chinese-to-English game, you already know what is happening. Real talk, it turns your daily Chinese into English you can spit on camera, you know what I'm saying.",
+    "chill": "Dude, so basically this thing — Situation English — it just takes your everyday Chinese and turns it into this super natural, chilled-out English vibe you can actually use anywhere. No stress, just good energy."
+  },
+  "collocation_notes": [
+    {
+      "phrase": "welcome to",
+      "note": "英语口语欢迎套话，地道且万能。"
+    },
+    {
+      "phrase": "turn … into",
+      "note": "表示“把……变成……”的动词短语，口语高频。"
+    },
+    {
+      "phrase": "real life",
+      "note": "真实生活的地道表达，口语常用。"
+    }
+  ]
+}
