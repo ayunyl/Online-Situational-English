@@ -120,12 +120,7 @@ $('#btnTestLlm').addEventListener('click', async () => {
   if (!key) { setStatus(el, false, '请填 API Key'); return; }
   setStatus(el, false, '连接中…');
   try {
-    const res = await fetch('/api/translate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: '你好', llm: { apiKey: key, baseUrl: url, model } })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '连接测试失败');
+    const data = await window.LlmBrowser.translate({ text: '你好', apiKey: key, baseUrl: url, model });
     if (!data.full_en && !data.chunks) throw new Error('模型没有返回有效数据');
     State.llm.connected = true;
     State.llm.cfg = { key, url, model };
@@ -133,7 +128,9 @@ $('#btnTestLlm').addEventListener('click', async () => {
     updateConnStatusBar();
   } catch (e) {
     State.llm.connected = false;
-    setStatus(el, false, e.message.slice(0, 80));
+    let msg = e.message.slice(0, 80);
+    if (e.corsError) msg = 'CORS 拦截，需要代理（详见控制台）';
+    setStatus(el, false, msg);
     updateConnStatusBar();
   }
 });
@@ -361,13 +358,18 @@ $('#btnTestTts').addEventListener('click', async () => {
   if (provider === 'kokoro') {
     setStatus(el, false, '引擎加载中…');
     try {
-      const res = await fetch('/api/tts', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: 'Hi there.', provider: 'kokoro', tts: { voiceId: voice || 'af_nicole', speed: speed || 1.0 } })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '合成测试失败');
-      if (!data.audioBase64) throw new Error('没有返回音频文件');
+      // 确保模型已加载
+      if (!window.KokoroBrowser.isReady()) {
+        await window.KokoroBrowser.loadModel();
+      }
+      if (!window.KokoroBrowser.isSupported()) {
+        throw new Error('当前设备不支持 Kokoro（手机请用浏览器语音）');
+      }
+      if (!window.KokoroBrowser.isReady()) {
+        throw new Error('模型加载失败，请刷新重试');
+      }
+      const result = await window.KokoroBrowser.synthesize('Hi there.', voice || 'af_nicole', speed || 1.0);
+      if (!result || !result.b64) throw new Error('没有返回音频');
       State.tts.cfg = { key: 'local', voiceId: voice, provider, speed };
       updateVoiceBadge();
       setStatus(el, true, '连接成功');
@@ -581,15 +583,12 @@ $('#btnGenerate').addEventListener('click', async () => {
     if (hint) hint.textContent = '快了快了';
   }, 60000));
   try {
-    const res = await fetch('/api/translate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text,
-        llm: { apiKey: State.llm.cfg.key, baseUrl: State.llm.cfg.url, model: State.llm.cfg.model }
-      })
+    const data = await window.LlmBrowser.translate({
+      text,
+      apiKey: State.llm.cfg.key,
+      baseUrl: State.llm.cfg.url,
+      model: State.llm.cfg.model
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '翻译出错了');
     // LLM 未返回 chunks 时，客户端兜底拆分
     if (!data.chunks || !Array.isArray(data.chunks) || data.chunks.length === 0) {
       if (data.full_en) {
@@ -688,35 +687,28 @@ function validateChunks(chunks) {
   });
 }
 
-// 调 /api/analyze 并自动重试：应对限流(429)/服务端过载(5xx)/网络抖动。
-// 返回解析后的 aData；最终仍失败则返回 null。这样并发被打回的风格也会退避后重发，不会永久卡在加载中。
+// 调浏览器端 LLM analyze 并自动重试
 function fetchAnalyzeChunks(text, llmCfg, maxRetries) {
   maxRetries = (maxRetries == null) ? 2 : maxRetries;
   const llm = llmCfg || (State.llm && State.llm.cfg) || {};
-  const body = { text, llm: { apiKey: llm.key, baseUrl: llm.url, model: llm.model } };
   function attempt(n) {
-    return fetch('/api/analyze', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+    return window.LlmBrowser.analyze({
+      text,
+      apiKey: llm.key,
+      baseUrl: llm.url,
+      model: llm.model
     })
-      .then(res => {
-        // 限流 / 服务端过载 → 退避后重试
-        if (res.status === 429 || res.status >= 500) {
+      .then(aData => aData || null)
+      .catch(e => {
+        if (e.httpStatus === 429 || (e.httpStatus && e.httpStatus >= 500)) {
           if (n < maxRetries) {
             return new Promise(r => setTimeout(r, 700 * (n + 1))).then(() => attempt(n + 1));
           }
-          console.warn('[analyze] 重试耗尽，状态码', res.status);
-          return null;
         }
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then(aData => (aData && aData.error) ? null : (aData || null))
-      .catch(e => {
         if (n < maxRetries) {
           return new Promise(r => setTimeout(r, 700 * (n + 1))).then(() => attempt(n + 1));
         }
-        console.warn('[analyze] 请求异常，重试耗尽', e && e.message);
+        console.warn('[analyze] 重试耗尽', e && e.message);
         return null;
       });
   }
@@ -946,23 +938,21 @@ function prefetchAllAudio() {
   let done = 0;
 
   async function fetchOne(item) {
-    const body = {
-      text: item.text,
-      provider: item.provider,
-      tts: { apiKey: key, voiceId: item.voiceId, baseUrl, model, speed }
-    };
     try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (data.audioBase64) {
-        TTS._cacheSet(item.text, item.voiceId + '@' + item.provider, {
-          b64: data.audioBase64,
-          mime: data.mime || 'audio/wav'
-        });
+      let result;
+      if (item.provider === 'kokoro') {
+        // 浏览器端 Kokoro 合成
+        if (!window.KokoroBrowser.isReady()) return; // 模型未就绪，跳过
+        result = await window.KokoroBrowser.synthesize(item.text, item.voiceId, speed);
+      } else {
+        // 云端 TTS（ElevenLabs/OpenAI 等）走 fetch
+        const body = { text: item.text, provider: item.provider, tts: { apiKey: key, voiceId: item.voiceId, baseUrl, model, speed } };
+        const res = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        result = data.audioBase64 ? { b64: data.audioBase64, mime: data.mime || 'audio/mpeg' } : null;
+      }
+      if (result && result.b64) {
+        TTS._cacheSet(item.text, item.voiceId + '@' + item.provider, result);
       }
     } catch (e) {
       console.log('[预合成] 失败:', item.text.substring(0, 30), e.message);
@@ -1142,16 +1132,13 @@ document.addEventListener('click', function (e) {
   if (!State.llm.connected) { showLlmGuide('拆分'); return; }
   const btn = e.target.closest('#btnSplit');
   btn.disabled = true; btn.classList.add('loading');
-  fetch('/api/analyze', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text,
-      llm: { apiKey: State.llm.cfg.key, baseUrl: State.llm.cfg.url, model: State.llm.cfg.model }
-    })
+  window.LlmBrowser.analyze({
+    text,
+    apiKey: State.llm.cfg.key,
+    baseUrl: State.llm.cfg.url,
+    model: State.llm.cfg.model
   })
-  .then(r => r.json())
   .then(data => {
-    if (data.error) throw new Error(data.error);
     // 仅更新 chunks，不替换整个 currentData
     // 合并 word_defs / phrase_defs（保留旧数据，加入新数据）
     Object.assign(State.wordDefs, data.word_defs || {});
@@ -1461,8 +1448,51 @@ const TTS = {
       return;
     }
 
-    // ── Kokoro / ElevenLabs / OpenAI 等：统一走后端 /api/tts ──
-    // Kokoro 已内置为后端原生引擎，后端进程内直接调用 ONNX 模型，无跨进程 HTTP
+    // ── Kokoro：浏览器端本地合成 ──
+    if (provider === 'kokoro') {
+      if (onload) onload();
+      // 确保模型已加载
+      const ensureModel = window.KokoroBrowser.isReady()
+        ? Promise.resolve()
+        : window.KokoroBrowser.loadModel();
+      ensureModel
+        .then(() => {
+          if (!window.KokoroBrowser.isReady()) {
+            throw new Error('Kokoro 模型未加载（手机可能不支持）');
+          }
+          return window.KokoroBrowser.synthesize(text, voiceId, speed);
+        })
+        .then(result => {
+          if (!result || !result.b64) throw new Error('没有返回音频');
+          this._cacheSet(text, voiceId + '@' + provider, { b64: result.b64, mime: result.mime });
+          const src = 'data:' + result.mime + ';base64,' + result.b64;
+          this._audio = new Audio(src);
+          this._audio.onplay  = onstart  || null;
+          this._audio.onended = () => {
+            if (this._currentBtn === btn) { this._setBtn(btn, null); this._currentBtn = null; }
+            if (onend) onend();
+          };
+          this._audio.onerror = () => {
+            if (this._currentBtn === btn) { this._setBtn(btn, null); this._currentBtn = null; }
+            if (onend) onend();
+          };
+          this._audio.play().catch(() => {
+            this._toast('播放失败');
+            if (this._loadingBtn) { this._setBtn(this._loadingBtn, null); this._loadingBtn = null; }
+            if (onend) onend();
+          });
+        })
+        .catch(err => {
+          // Kokoro 失败 → 降级到浏览器语音
+          console.warn('[TTS] Kokoro 失败，降级到浏览器语音:', err.message);
+          this._toast('Kokoro 降级到浏览器语音');
+          if (this._loadingBtn) { this._setBtn(this._loadingBtn, null); this._loadingBtn = null; }
+          this._browserSpeak(text, onstart, onend);
+        });
+      return;
+    }
+
+    // ── ElevenLabs / OpenAI 等：仍走 fetch（需 CORS 或代理）──
     const model = ($('#ttsModel') || {}).value || '';
     const body = { text, provider, tts: { apiKey: key, voiceId, baseUrl, model, speed } };
     if (onload) onload();
@@ -1909,6 +1939,36 @@ function autoResizeTextarea(el) {
   State.styles = DEMO_CARD.styles || {};
   State.activeStyle = 'casual';
   renderCard(DEMO_CARD);
+})();
+
+// ── 后台自动加载 Kokoro 模型（电脑端）──────────────
+(function () {
+  // 等 KokoroBrowser 模块加载完成（type=module 异步）
+  function tryInit() {
+    if (!window.KokoroBrowser) {
+      setTimeout(tryInit, 500);
+      return;
+    }
+    if (!window.KokoroBrowser.isSupported()) {
+      console.log('[Kokoro] 手机设备，跳过模型加载');
+      const ttsText = document.getElementById('ttsStatusText');
+      if (ttsText) ttsText.textContent = '浏览器语音（手机模式）';
+      return;
+    }
+    // 后台加载，不阻塞页面
+    const ttsText = document.getElementById('ttsStatusText');
+    if (ttsText) ttsText.textContent = 'Kokoro 加载中...';
+    window.KokoroBrowser.loadModel((pct, file) => {
+      if (ttsText) ttsText.textContent = 'Kokoro 下载 ' + pct + '%';
+    }).then(() => {
+      if (ttsText) ttsText.textContent = 'Kokoro 就绪';
+      console.log('[Kokoro] 模型后台加载完成');
+    }).catch(err => {
+      if (ttsText) ttsText.textContent = 'Kokoro 加载失败';
+      console.warn('[Kokoro] 模型加载失败:', err.message);
+    });
+  }
+  tryInit();
 })();
 
 // ── 每次刷新页面引导 — 聚光灯三步（播放→翻译→帮助） ──────────

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kokoro 浏览器测试</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+#status { padding: 12px; border-radius: 8px; margin: 10px 0; background: #f0f0f0; line-height: 1.6; }
+.btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 8px; background: #4d4d55; color: #fff; }
+.btn:disabled { opacity: 0.5; cursor: wait; }
+.voice-select { padding: 8px; font-size: 14px; border-radius: 6px; margin: 5px 0; }
+input[type=text] { width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; margin: 5px 0; }
+#progress { width: 100%; height: 20px; background: #e0e0e0; border-radius: 10px; margin: 8px 0; display: none; }
+#progress-bar { height: 100%; background: #4d4d55; border-radius: 10px; transition: width 0.3s; }
+#console-log { background: #1a1a2e; color: #0f0; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; margin-top: 10px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h2>Kokoro 浏览器端测试</h2>
+<div id="status">点击下方按钮加载模型（首次约 82MB，使用国内镜像加速）</div>
+<div id="progress"><div id="progress-bar" style="width:0%"></div></div>
+
+<div>
+  <label>文本：</label>
+  <input type="text" id="text" value="Life is like a box of chocolates. You never know what you're gonna get.">
+</div>
+
+<div>
+  <label>音色：</label>
+  <select id="voice" class="voice-select">
+    <option value="af_nicole">Nicole (美式女声)</option>
+    <option value="af_heart">Heart (美式女声)</option>
+    <option value="am_michael">Michael (美式男声)</option>
+    <option value="am_adam">Adam (美式男声)</option>
+    <option value="bf_emma">Emma (英式女声)</option>
+    <option value="bm_george">George (英式男声)</option>
+  </select>
+</div>
+
+<br>
+<button class="btn" id="btnLoad" onclick="loadModel()">1. 加载模型</button>
+<button class="btn" id="btnSynth" onclick="synthesize()" disabled>2. 合成并播放</button>
+
+<div id="console-log"></div>
+
+<script type="module">
+// 先导入 transformers.js 的 env，设置国内镜像
+import { env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/+esm";
+// 使用 HuggingFace 国内镜像
+env.remoteHost = "https://hf-mirror.com";
+env.remotePathTemplate = "{model}/resolve/{revision}/";
+
+// 设置 onnxruntime WASM 路径（从 jsDelivr CDN 加载）
+env.backends = env.backends || {};
+env.backends.onnx = env.backends.onnx || {};
+env.backends.onnx.wasm = env.backends.onnx.wasm || {};
+env.backends.onnx.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
+
+// 再导入 kokoro-js
+import { KokoroTTS } from "https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm";
+
+let tts = null;
+window.tts = null;
+
+function log(msg) {
+  const el = document.getElementById('console-log');
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+  console.log(msg);
+}
+
+function setStatus(text, color) {
+  const status = document.getElementById('status');
+  status.textContent = text;
+  status.style.background = color || '#f0f0f0';
+}
+
+window.loadModel = async function() {
+  const btnLoad = document.getElementById('btnLoad');
+  const btnSynth = document.getElementById('btnSynth');
+  const progress = document.getElementById('progress');
+  const progressBar = document.getElementById('progress-bar');
+  
+  btnLoad.disabled = true;
+  btnLoad.textContent = '加载中...';
+  progress.style.display = 'block';
+  setStatus('正在下载模型（82MB），使用国内镜像加速...', '#fff3cd');
+  log('[开始] 从 hf-mirror.com 下载 Kokoro 模型...');
+
+  try {
+    const start = Date.now();
+
+    // 先检测 WebGPU 支持，优先用 GPU（快 3-5 倍）
+    let device = 'wasm';
+    let dtype = 'q8';
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (adapter) {
+        device = 'webgpu';
+        dtype = 'fp32';
+        log('[检测] 支持 WebGPU，使用 GPU 加速');
+      } else {
+        log('[检测] 不支持 WebGPU，使用 WASM (CPU)');
+      }
+    } catch(e) {
+      log('[检测] WebGPU 不可用，使用 WASM (CPU)');
+    }
+
+    tts = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
+      dtype: dtype,
+      device: device,
+      progress_callback: (info) => {
+        if (info.status === 'progress') {
+          const pct = (info.progress || 0).toFixed(0);
+          progressBar.style.width = pct + '%';
+          setStatus('下载模型中: ' + pct + '%  ' + (info.file || ''), '#fff3cd');
+          if (pct % 20 === 0) log('[下载] ' + pct + '% - ' + (info.file || ''));
+        } else if (info.status === 'done') {
+          log('[完成] ' + (info.file || '文件') + ' 已就绪');
+        } else if (info.status === 'ready') {
+          log('[就绪] 模型准备完成');
+        }
+      }
+    });
+    window.tts = tts;
+    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+    setStatus('模型加载成功！耗时 ' + elapsed + 's。可以合成语音了。', '#d4edda');
+    log('[成功] 模型加载完成，耗时 ' + elapsed + 's');
+    progressBar.style.width = '100%';
+    btnLoad.textContent = '已加载';
+    btnSynth.disabled = false;
+  } catch (e) {
+    setStatus('加载失败: ' + e.message, '#f8d7da');
+    log('[错误] ' + e.message);
+    log('[详情] ' + e.stack);
+    btnLoad.disabled = false;
+    btnLoad.textContent = '重试';
+  }
+};
+
+window.synthesize = async function() {
+  if (!tts) return;
+  const text = document.getElementById('text').value.trim();
+  const voice = document.getElementById('voice').value;
+  const btnSynth = document.getElementById('btnSynth');
+  
+  if (!text) return;
+  btnSynth.disabled = true;
+  btnSynth.textContent = '合成中...';
+  setStatus('正在合成语音...', '#fff3cd');
+  log('[合成] 开始合成: "' + text.substring(0, 50) + '..." voice=' + voice);
+
+  try {
+    const start = Date.now();
+    const audio = await tts.generate(text, { voice, speed: 1.0 });
+    const elapsed = ((Date.now() - start) / 1000).toFixed(2);
+    log('[合成] 完成，耗时 ' + elapsed + 's');
+    
+    const wav = audio.toWav();
+    const blob = new Blob([wav], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const player = new Audio(url);
+    player.play();
+    
+    setStatus('合成成功！耗时 ' + elapsed + 's。正在播放...', '#d4edda');
+    log('[播放] 音频开始播放');
+    player.onended = () => {
+      setStatus('合成成功！耗时 ' + elapsed + 's。播放完毕。', '#d4edda');
+      log('[播放] 播放完毕');
+    };
+  } catch (e) {
+    setStatus('合成失败: ' + e.message, '#f8d7da');
+    log('[错误] ' + e.message);
+    log('[详情] ' + e.stack);
+  } finally {
+    btnSynth.disabled = false;
+    btnSynth.textContent = '2. 合成并播放';
+  }
+};
+</script>
+</body>
+</html>
