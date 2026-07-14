@@ -1,21 +1,16 @@
 """
 线上情景英语 — Modal.com 部署入口
 
-原理：Modal 容器内启动 Node.js Express 服务器（子进程），
-Python ASGI 代理把所有 HTTP 请求转发给它。
-用户打开 Modal 给的网址 → Modal 代理 → Express → 返回页面 / API 响应。
-
-部署命令（在项目根目录执行）：
-    pip install modal
-    modal token new
-    modal deploy modal_app.py
+部署命令：
+    pip3 install modal httpx starlette uvicorn
+    python3 -m modal token new
+    python3 -m modal deploy modal_app.py
 """
 
 import modal
 import subprocess
 import os
 import time
-import httpx
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.responses import Response
@@ -23,33 +18,35 @@ from starlette.requests import Request
 
 app = modal.App("online-situational-english")
 
-# 持久化卷：缓存 Kokoro 模型，避免每次冷启动都重新下载 82MB
+# 持久化卷：缓存 Kokoro 模型
 model_cache = modal.Volume.from_name("kokoro-model-cache", create_if_missing=True)
 
-# Docker 镜像：Node.js + Python（Modal 需要 Python 运行 ASGI 代理）
+# 镜像：Node.js + Python 依赖 + 本地源码（copy=True 烤进镜像层，才能 npm install）
 image = (
     modal.Image.from_registry("node:22-slim")
-    .apt_install("libgomp1")          # onnxruntime 需要
-    .copy_local_dir(".", "/app")       # 复制项目源码
-    .workdir("/app")
-    .run_commands("npm install --production")  # 在镜像构建时装好依赖
-    .pip_install("httpx", "starlette", "uvicorn")  # Python 代理所需
+    .apt_install("libgomp1", "python3", "python3-pip", "python3-venv")
+    .run_commands(
+        "python3 -m venv /opt/venv",
+        "/opt/venv/bin/pip install httpx starlette uvicorn",
+    )
+    .env({"PATH": "/opt/venv/bin:$PATH"})
+    .add_local_dir(".", "/app", copy=True, ignore=["node_modules", ".git", "dist", "*.log"])
+    .run_commands("cd /app && npm install --production")
 )
 
 
 @app.function(
     image=image,
-    memory=2048,       # 2GB 内存，Kokoro 峰值约 800MB，余量充足
+    memory=2048,
     cpu=1,
-    timeout=300,       # 单次请求最长 5 分钟（TTS 合成可能耗时）
-    volumes={"/data/hf-cache": model_cache},  # 持久化模型缓存
+    timeout=300,
+    volumes={"/data/hf-cache": model_cache},
 )
 @modal.asgi_app()
 def serve():
     """启动 Express 服务器（子进程），返回 ASGI 代理。"""
 
-    # 设置环境变量
-    os.environ["HF_HOME"] = "/data/hf-cache"     # HuggingFace 模型缓存到持久卷
+    os.environ["HF_HOME"] = "/data/hf-cache"
     os.environ["PORT"] = "3000"
     os.environ["NODE_ENV"] = "production"
 
@@ -61,20 +58,21 @@ def serve():
         stderr=subprocess.PIPE,
     )
 
-    # 等待服务器就绪（轮询 health 接口，最多等 60 秒）
-    for i in range(60):
+    # 等待服务器就绪
+    import httpx
+    for i in range(90):
         try:
             r = httpx.get("http://127.0.0.1:3000/api/health", timeout=2)
             if r.status_code == 200:
-                print(f"[Modal] Express 服务器就绪（{i+1}s）")
+                print(f"[Modal] Express ready ({i+1}s)")
                 break
         except Exception:
             pass
         time.sleep(1)
     else:
-        print("[Modal] ⚠️ Express 服务器启动超时，但仍继续启动代理")
+        print("[Modal] WARNING: Express startup timeout, proxy will attempt anyway")
 
-    # ASGI 代理：把所有请求转发到 Express
+    # ASGI 代理
     async def proxy(request: Request):
         path = request.url.path
         url = f"http://127.0.0.1:3000{path}"
@@ -94,7 +92,6 @@ def serve():
                 headers=headers,
             )
 
-        # 过滤掉 hop-by-hop 头
         resp_headers = {
             k: v for k, v in resp.headers.items()
             if k.lower() not in ("transfer-encoding", "content-encoding", "content-length")
