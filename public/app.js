@@ -896,12 +896,101 @@ function decorateAndBind(data) {
   bindPlayButtons();
   wireFullText();
   wireStyleSwitcher();
+
+  // ── 自动预合成：卡片渲染后后台批量抓取所有句子音频 ──
+  prefetchAllAudio();
 }
 
 // ────────────────────────────────────────
 //  悬停释义
 // ────────────────────────────────────────
 const tip = $('#tip');
+
+// ────────────────────────────────────────
+//  自动预合成：卡片渲染后后台批量抓取所有句子音频
+//  用户点播放时直接从缓存播放，不用等
+// ────────────────────────────────────────
+function prefetchAllAudio() {
+  const provider = ($('#ttsProvider') || {}).value || 'browser';
+  if (provider === 'browser') return; // 浏览器 TTS 不需要预合成
+
+  // 收集所有需要合成的句子
+  const sentences = [];
+  document.querySelectorAll('.play-btn[data-say]').forEach(btn => {
+    const text = btn.getAttribute('data-say') || '';
+    if (!text) return;
+    const voiceId = (provider === 'kokoro') ? resolveKokoroVoice(text) : (($('#ttsVoice') || {}).value || 'default');
+    const cacheKey = voiceId + '@' + provider;
+    if (!TTS._cacheGet(text, cacheKey)) {
+      sentences.push({ text, voiceId, provider });
+    }
+  });
+
+  // 没有需要预合成的
+  if (sentences.length === 0) return;
+
+  // 在状态条显示"正在预合成..."
+  const ttsStatusText = $('#ttsStatusText');
+  const originalText = ttsStatusText ? ttsStatusText.textContent : '';
+  if (ttsStatusText) ttsStatusText.textContent = '预合成中...';
+
+  const key = ($('#ttsKey') || {}).value || '';
+  const baseUrl = ($('#ttsBaseUrl') || {}).value || '';
+  const model = ($('#ttsModel') || {}).value || '';
+  const kokoroSpeedEl = document.getElementById('kokoroSpeed');
+  const speed = (provider === 'kokoro' && kokoroSpeedEl) ? parseFloat(kokoroSpeedEl.value) : 1.0;
+
+  // 并行抓取（最多 3 个同时，避免服务器过载）
+  const CONCURRENCY = 3;
+  let index = 0;
+  let done = 0;
+
+  async function fetchOne(item) {
+    const body = {
+      text: item.text,
+      provider: item.provider,
+      tts: { apiKey: key, voiceId: item.voiceId, baseUrl, model, speed }
+    };
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (data.audioBase64) {
+        TTS._cacheSet(item.text, item.voiceId + '@' + item.provider, {
+          b64: data.audioBase64,
+          mime: data.mime || 'audio/wav'
+        });
+      }
+    } catch (e) {
+      console.log('[预合成] 失败:', item.text.substring(0, 30), e.message);
+    }
+    done++;
+    if (ttsStatusText) {
+      ttsStatusText.textContent = '预合成 ' + done + '/' + sentences.length;
+    }
+  }
+
+  async function runPool() {
+    const workers = [];
+    for (let w = 0; w < CONCURRENCY; w++) {
+      workers.push((async () => {
+        while (index < sentences.length) {
+          const item = sentences[index++];
+          await fetchOne(item);
+        }
+      })());
+    }
+    await Promise.all(workers);
+    if (ttsStatusText) {
+      ttsStatusText.textContent = originalText || 'Kokoro 就绪';
+    }
+  }
+
+  runPool(); // 后台执行，不阻塞 UI
+}
 function showTip(w, x, y) {
   const wc = w.dataset.w || norm(w.textContent);
   const def = look(wc);
