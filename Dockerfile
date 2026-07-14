@@ -17,10 +17,10 @@ COPY server/ ./server/
 COPY public/ ./public/
 COPY LICENSE THIRD-PARTY-NOTICES.md ./
 
-# 环境变量
-ENV PORT=7860
+# 环境变量（端口由平台注入，默认 3000）
 ENV NODE_ENV=production
+ENV PORT=3000
 
-EXPOSE 7860
+EXPOSE 3000
 
 CMD ["node", "server/index.js"]
